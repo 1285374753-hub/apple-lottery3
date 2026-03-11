@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Apple 全家桶抽奖</title>
+  <style>
+    /* 基础重置 & Apple 风格字体 */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      background-color: #f5f5f7;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* 模拟手机屏幕容器 */
+    .app-container {
+      width: 100%;
+      max-width: 390px;
+      height: 844px;
+      max-height: 100vh;
+      background-color: #ffffff;
+      position: relative;
+      overflow-y: auto;
+      overflow-x: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      border-radius: 40px;
+      border: 8px solid #000;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 顶部导航栏 */
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      position: sticky;
+      top: 0;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #1d1d1f;
+      letter-spacing: -0.5px;
+    }
+
+    /* 主内容区 */
+    .main-content {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
+
+    /* 余额提示 */
+    .balance-badge {
+      background-color: #f2f2f7;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      color: #1d1d1f;
+      font-weight: 500;
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .balance-badge span {
+      color: #0071e3;
+      font-weight: 600;
+    }
+
+    /* --- 九宫格抽奖区 --- */
+    .grid-container {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+
+    /* 奖品格子 */
+    .grid-cell {
+      background-color: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+      border: 2px solid transparent;
+    }
+
+    /* 选中高亮状态 */
+    .grid-cell.active {
+      transform: scale(1.05);
+      border-color: #0071e3;
+      box-shadow: 0 8px 20px rgba(0, 113, 227, 0.25);
+      z-index: 2;
+    }
+
+    /* 奖品图片 (真实图片样式) */
+    .prize-img {
+      width: 50px;
+      height: 50px;
+      object-fit: contain; /* 保证图片不变形 */
+      margin-bottom: 8px;
+    }
+
+    /* 找不到图片时的占位背景，方便测试 */
+    .prize-img-placeholder {
+      background-color: #f5f5f7;
+      border-radius: 8px;
+    }
+
+    .prize-name {
+      font-size: 10px;
+      color: #1d1d1f;
+      font-weight: 500;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    /* 中心抽奖按钮 */
+    .draw-center-btn {
+      background: linear-gradient(135deg, #0071e3 0%, #005bb5 100%);
+      border-radius: 20px;
+      box-shadow: 0 8px 16px rgba(0, 113, 227, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      border: none;
+      outline: none;
+    }
+
+    .draw-center-btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 4px 8px rgba(0, 113, 227, 0.2);
+    }
+
+    .draw-center-btn.disabled {
+      background: #e5e5ea;
+      box-shadow: none;
+      color: #86868b;
+      cursor: not-allowed;
+      transform: scale(1);
+    }
+
+    .btn-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+    .btn-sub {
+      font-size: 10px;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+
+    /* 底部操作区 */
+    .action-footer {
+      width: 100%;
+      margin-top: auto;
+      padding-bottom: 20px;
+    }
+
+    .task-btn {
+      width: 100%;
+      background-color: #f2f2f7;
+      color: #1d1d1f;
+      border: none;
+      padding: 16px;
+      border-radius: 999px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .task-btn:active {
+      background-color: #e5e5ea;
+    }
+
+    /* 弹窗 (Modal) */
+    .result-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s;
+    }
+
+    .result-modal.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background-color: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      width: 80%;
+      max-width: 320px;
+      border-radius: 32px;
+      padding: 40px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+      transform: scale(0.9);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .result-modal.active .modal-content {
+      transform: scale(1);
+    }
+
+    .modal-subtitle {
+      font-size: 15px;
+      color: #86868b;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+
+    /* 弹窗中的大图 */
+    .modal-reward-img {
+      width: 120px;
+      height: 120px;
+      object-fit: contain;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1)); /* 为透明底图片添加阴影 */
+    }
+
+    .modal-reward-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1d1d1f;
+      margin-bottom: 30px;
+    }
+
+    .primary-btn {
+      width: 100%;
+      background-color: #0071e3;
+      color: white;
+      border: none;
+      padding: 16px;
+      border-radius: 999px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (max-width: 400px) {
+      .app-container { border: none; border-radius: 0; height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <header class="nav-bar">
+      <button class="nav-btn">
+        <svg width="12" height="20" viewBox="0 0 12 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10.5 1.5L2 10L10.5 18.5" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="nav-title">全家桶限定抽奖</div>
+      <button class="nav-btn">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="10" cy="10" r="9" stroke="#1D1D1F" stroke-width="1.5"/>
+          <path d="M7.5 7.5C7.5 6.11929 8.61929 5 10 5C11.3807 5 12.5 6.11929 12.5 7.5C12.5 8.5 11.5 9.5 10 10V11" stroke="#1D1D1F" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="10" cy="14.5" r="1" fill="#1D1D1F"/>
+        </svg>
+      </button>
+    </header>
+
+    <main class="main-content">
+      <div class="balance-badge">
+        我的抽奖次数: <span id="balanceText">3</span>
+      </div>
+
+      <div class="grid-container">
+        <div class="grid-cell" id="cell-0">
+          <img src="iphone-17-pro-max.png" alt="iPhone 17 Pro Max" class="prize-img prize-img-placeholder" id="img-0">
+          <div class="prize-name">iPhone 17 Pro Max</div>
+        </div>
+        <div class="grid-cell" id="cell-1">
+          <img src="macbook-pro.png" alt="MacBook Pro (M5 Max)" class="prize-img prize-img-placeholder" id="img-1">
+          <div class="prize-name">MacBook Pro<br>(M5 Max)</div>
+        </div>
+        <div class="grid-cell" id="cell-2">
+          <img src="ipad-pro.png" alt="iPad Pro (M5)" class="prize-img prize-img-placeholder" id="img-2">
+          <div class="prize-name">iPad Pro<br>(M5)</div>
+        </div>
+        
+        <div class="grid-cell" id="cell-7">
+          <img src="macbook-neo.png" alt="MacBook Neo (A18 Pro)" class="prize-img prize-img-placeholder" id="img-7">
+          <div class="prize-name">MacBook Neo<br>(A18 Pro)</div>
+        </div>
+        <button class="draw-center-btn" id="drawBtn">
+          <span class="btn-title">抽奖</span>
+          <span class="btn-sub">消耗 1 次</span>
+        </button>
+        <div class="grid-cell" id="cell-3">
+          <img src="apple-watch-ultra-3.png" alt="Apple Watch Ultra 3" class="prize-img prize-img-placeholder" id="img-3">
+          <div class="prize-name">Apple Watch<br>Ultra 3</div>
+        </div>
+
+        <div class="grid-cell" id="cell-6">
+          <img src="iphone-17e.png" alt="iPhone 17e" class="prize-img prize-img-placeholder" id="img-6">
+          <div class="prize-name">iPhone 17e</div>
+        </div>
+        <div class="grid-cell" id="cell-5">
+          <img src="airpods-pro-3.png" alt="AirPods Pro 3" class="prize-img prize-img-placeholder" id="img-5">
+          <div class="prize-name">AirPods Pro 3</div>
+        </div>
+        <div class="grid-cell" id="cell-4">
+          <img src="ipad-11.png" alt="iPad 11 (A16)" class="prize-img prize-img-placeholder" id="img-4">
+          <div class="prize-name">iPad 11<br>(A16)</div>
+        </div>
+      </div>
+
+      <div class="action-footer">
+        <button class="task-btn" onclick="addBalance()">完成任务获取更多次数</button>
+      </div>
+
+    </main>
+
+    <div class="result-modal" id="resultModal">
+      <div class="modal-content">
+        <div class="modal-subtitle">🎉 恭喜你获得 🎉</div>
+        <img src="" alt="奖品图" class="modal-reward-img" id="modalImg">
+        <div class="modal-reward-name" id="modalName">奖品名称</div>
+        <button class="primary-btn" onclick="closeModal()">开心收下</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 奖品数据映射 (包含图片的相对路径，与 DOM 对应)
+    const prizes = [
+      { id: 0, name: "iPhone 17 Pro Max", imgSrc: "iphone-17-pro-max.png" },
+      { id: 1, name: "MacBook Pro (M5 Max)", imgSrc: "macbook-pro.png" },
+      { id: 2, name: "iPad Pro (M5)", imgSrc: "ipad-pro.png" },
+      { id: 3, name: "Apple Watch Ultra 3", imgSrc: "apple-watch-ultra-3.png" },
+      { id: 4, name: "iPad 11 (A16)", imgSrc: "ipad-11.png" },
+      { id: 5, name: "AirPods Pro 3", imgSrc: "airpods-pro-3.png" },
+      { id: 6, name: "iPhone 17e", imgSrc: "iphone-17e.png" },
+      { id: 7, name: "MacBook Neo (A18 Pro)", imgSrc: "macbook-neo.png" }
+    ];
+
+    let balance = 3;
+    let isDrawing = false;
+    
+    // 动画相关变量
+    let currentStep = 0;   
+    let totalSteps = 0;    
+    let speed = 50;        
+    let activeIndex = -1;  
+
+    const drawBtn = document.getElementById('drawBtn');
+    const balanceText = document.getElementById('balanceText');
+    const modal = document.getElementById('resultModal');
+
+    // 处理图片加载失败时的占位显示（可选）
+    document.querySelectorAll('.prize-img').forEach(img => {
+      img.onerror = function() {
+        this.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' fill='%23e5e5ea' rx='8'/%3E%3Ctext x='50%25' y='50%25' font-size='10' fill='%2386868b' font-family='sans-serif' text-anchor='middle' dy='.3em'%3E图%3C/text%3E%3C/svg%3E";
+      };
+    });
+
+    function startDraw() {
+      if (isDrawing) return;
+      if (balance <= 0) {
+        alert("抽奖次数不足！");
+        return;
+      }
+
+      // 扣减次数
+      balance--;
+      balanceText.textContent = balance;
+      
+      // 锁定按钮状态
+      isDrawing = true;
+      drawBtn.classList.add('disabled');
+      drawBtn.querySelector('.btn-title').textContent = '抽奖中';
+
+      // 决定中奖结果 (0-7 随机)
+      const targetIndex = Math.floor(Math.random() * 8);
+      
+      // 计算总步数：基础跑 5 圈 (40步) + 目标位置
+      totalSteps = (8 * 5) + targetIndex;
+      currentStep = 0;
+      speed = 40; 
+
+      roll();
+    }
+
+    function roll() {
+      if (activeIndex !== -1) {
+        document.getElementById(`cell-${activeIndex}`).classList.remove('active');
+      }
+
+      activeIndex = currentStep % 8;
+      document.getElementById(`cell-${activeIndex}`).classList.add('active');
+
+      if (currentStep < totalSteps) {
+        currentStep++;
+        
+        // 阻尼减速算法
+        if (totalSteps - currentStep < 8) {
+          speed += 50; 
+        } else if (totalSteps - currentStep < 16) {
+          speed += 15;
+        }
+
+        setTimeout(roll, speed);
+      } else {
+        setTimeout(() => showResult(activeIndex), 400); 
+      }
+    }
+
+    function showResult(index) {
+      const prize = prizes.find(p => p.id === index);
+      
+      // 更新弹窗内容
+      const modalImgEl = document.getElementById('modalImg');
+      modalImgEl.src = prize.imgSrc;
+      // 弹窗图片加载失败处理
+      modalImgEl.onerror = function() {
+        this.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23e5e5ea' rx='16'/%3E%3Ctext x='50%25' y='50%25' font-size='16' fill='%2386868b' font-family='sans-serif' text-anchor='middle' dy='.3em'%3E请替换图片%3C/text%3E%3C/svg%3E";
+      };
+      document.getElementById('modalName').textContent = prize.name;
+      
+      modal.classList.add('active');
+      
+      isDrawing = false;
+      drawBtn.classList.remove('disabled');
+      drawBtn.querySelector('.btn-title').textContent = '抽奖';
+    }
+
+    function closeModal() {
+      modal.classList.remove('active');
+      if (activeIndex !== -1) {
+        document.getElementById(`cell-${activeIndex}`).classList.remove('active');
+        activeIndex = -1;
+      }
+    }
+
+    function addBalance() {
+      if(isDrawing) return;
+      balance += 1;
+      balanceText.textContent = balance;
+    }
+
+    drawBtn.addEventListener('click', startDraw);
+  </script>
+</body>
+</html>
